@@ -1,0 +1,48 @@
+---
+
+#Configure SNMPV3 for host monitoring (not alerting) in RedHat\CentOS distros
+
+#Default Ping Test
+- name: testing connection
+  ping:
+
+- name: Install SNMP Package and Management Tools
+  yum: name={{item}} state=present
+
+  with_items:
+  - net-snmp
+  - net-snmp-utils
+  - net-snmp-devel
+
+
+- name: Ensure SNMP service is stopped before doing changes.
+  service: name=snmpd.service state=stopped
+
+
+- name: Make a backup of the snmpd.conf file.
+  shell: mv /etc/snmp/snmpd.conf /etc/snmp/snmpd.conf.backup
+
+
+- name: Create a new snmpd.conf
+  shell: touch /etc/snmp/snmpd.conf
+
+
+- name: Create a new SNMPv3 user using MD5 for authentication  and AES for encryption.
+  shell: sudo net-snmp-create-v3-user -ro -A "{{Auth_Password}}" -X "{{Encrypt_Password}}" -a MD5 -x AES SNMPV3USER
+
+- name: Enable SNMP 161\udp on firewall-cmd
+  shell: sudo firewall-cmd --permanent --add-port=161/udp
+
+- name: Enable SNMP 162\udp on firewall-cmd
+  shell: sudo firewall-cmd --permanent --add-port=162/udp
+
+- name: Enable ICMP Echo Requests On Firewalld for Observium querying
+  shell: sudo firewall-cmd --permanent --zone=public --remove-icmp-block=echo-request
+
+- name: Restart firewall-cmd to load the changes permanently.
+  service: name=firewalld.service enabled=yes state=restarted
+
+- name: Start and Enable SNMP service
+  service: name=snmpd.service enabled=yes state=started
+
+
